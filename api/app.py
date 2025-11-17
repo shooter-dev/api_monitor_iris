@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 Starting up Iris Classification API...")
     
     # Chargement du modèle
-    global model, model_metadata
+    global model, model_scaler_X, model_scaler_y
     
    
     model = joblib.load(MODEL_PATH)
@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
         logger.info("📝 Fichier de log des prédictions initialisé")
     
     # Injection des variables globales dans les routes
-    set_model_globals(model, model_metadata, PREDICTIONS_LOG)
+    set_model_globals(model, model_scaler_X, model_scaler_y, PREDICTIONS_LOG)
     
     yield  # L'application est en cours d'exécution
     
@@ -54,7 +54,7 @@ app = FastAPI(
     title="Iris Classification API",
     description="API pour la classification des fleurs Iris avec RandomForest",
     version="1.0.0",
-   # lifespan=lifespan,
+    lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc"
 )
