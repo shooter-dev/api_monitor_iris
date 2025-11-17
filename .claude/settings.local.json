@@ -1,0 +1,19 @@
+{
+  "enabledMcpjsonServers": [
+    "python-sdk",
+    "docker",
+    "jupyter",
+    "postgresql",
+    "opik",
+    "memory-bank",
+    "sequential-thinking",
+    "brave-search",
+    "google-maps",
+    "deep-graph"
+  ],
+  "permissions": {
+    "allow": [
+      "mcp__ide__executeCode"
+    ]
+  }
+}
