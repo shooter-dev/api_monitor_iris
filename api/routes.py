@@ -175,7 +175,7 @@ async def prediction_stats():
 
 def set_model_globals(model_instance, model_scaler_X_instance, model_scaler_y_instance, predictions_log_path):
     """Fonction pour injecter les variables globales depuis app.py"""
-    global model, model_metadata, PREDICTIONS_LOG, model_scaler_X, model_scaler_y
+    global model, PREDICTIONS_LOG, model_scaler_X, model_scaler_y
     model = model_instance
     model_scaler_X = model_scaler_X_instance
     model_scaler_y = model_scaler_y_instance
