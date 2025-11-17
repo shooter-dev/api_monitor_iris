@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: 'api_eris'
+    static_configs:
+      - targets: ['10.0.0.244:15692'] # ip api_address:port
