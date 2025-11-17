@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException
 import pandas as pd
 import numpy as np
 from datetime import datetime
+import joblib
 import logging
 import os
 from .schema import (
@@ -18,13 +19,17 @@ router = APIRouter()
 # Variables globales (seront injectées depuis app.py)
 model = None
 model_metadata = {}
-PREDICTIONS_LOG = "monitoring/predictions_log.csv"
+model_scaler_X = None
+model_scaler_y = None
+PREDICTIONS_LOG = None
 
 @router.post("/predict", response_model=PredictionResponse)
 async def predict(features: IrisFeatures):
     """
     Effectue une prédiction sur les caractéristiques d'une fleur Iris
     """
+
+       
     if model is None:
         raise HTTPException(status_code=500, detail="Modèle non chargé")
     
@@ -36,12 +41,15 @@ async def predict(features: IrisFeatures):
             features.petal_length,
             features.petal_width
         ]], columns=model_metadata['features'])
+
+        input_data_scaled = model_scaler_X.transform(input_data)  # Ajouter le scaling si nécessaire
         
         # Prédiction
-        prediction = model.predict(input_data)[0]
-        probabilities = model.predict_proba(input_data)[0]
+        prediction = model.predict(input_data_scaled)[0]
+        probabilities = model.predict_proba(input_data_scaled)[0]
+        prediction_scaled = model_scaler_y.inverse_transform([[prediction]])[0][0]
         confidence = np.max(probabilities)
-        prediction_name = model_metadata['target_mapping'][str(prediction)]
+        prediction_name = model_metadata['target_mapping'][str(prediction_scaled)]
         
         # Enregistrement pour monitoring
         await log_prediction(features, prediction, prediction_name, confidence)
@@ -165,9 +173,10 @@ async def prediction_stats():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur lors du chargement des stats: {e}")
 
-def set_model_globals(model_instance, metadata, predictions_log_path):
+def set_model_globals(model_instance, model_scaler_X_instance, model_scaler_y_instance, predictions_log_path):
     """Fonction pour injecter les variables globales depuis app.py"""
-    global model, model_metadata, PREDICTIONS_LOG
+    global model, model_metadata, PREDICTIONS_LOG, model_scaler_X, model_scaler_y
     model = model_instance
-    model_metadata = metadata
+    model_scaler_X = model_scaler_X_instance
+    model_scaler_y = model_scaler_y_instance
     PREDICTIONS_LOG = predictions_log_path

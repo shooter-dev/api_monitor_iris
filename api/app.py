@@ -6,17 +6,15 @@ import json
 import pandas as pd
 import logging
 import os
+from .config import MODEL_PATH, MODEL_SCALERX_PATH, MODEL_SCALERY_PATH, PREDICTIONS_LOG
 from .routes import router, set_model_globals
-from .monitoring import setup_monitoring
+#from .monitoring import setup_monitoring
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Chemins des fichiers
-MODEL_PATH = "models/random_forest_iris.pkl"
-METADATA_PATH = "models/model_metadata.json"
-PREDICTIONS_LOG = "monitoring/predictions_log.csv"
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -26,18 +24,10 @@ async def lifespan(app: FastAPI):
     # Chargement du modèle
     global model, model_metadata
     
-    try:
-        model = joblib.load(MODEL_PATH)
-        with open(METADATA_PATH, 'r') as f:
-            model_metadata = json.load(f)
-        logger.info("✅ Modèle Iris et métadonnées chargés avec succès")
-        logger.info(f"📊 Features: {model_metadata['features']}")
-        logger.info(f"🎯 Target names: {model_metadata['target_names']}")
-        logger.info(f"📈 Accuracy: {model_metadata.get('accuracy', 'N/A')}")
-    except Exception as e:
-        logger.error(f"❌ Erreur lors du chargement du modèle: {e}")
-        model = None
-        model_metadata = {}
+   
+    model = joblib.load(MODEL_PATH)
+    model_scaler_X = joblib.load(MODEL_SCALERX_PATH)
+    model_scaler_y = joblib.load(MODEL_SCALERY_PATH) 
     
     # Initialisation du fichier de log
     os.makedirs("monitoring", exist_ok=True)
@@ -64,13 +54,13 @@ app = FastAPI(
     title="Iris Classification API",
     description="API pour la classification des fleurs Iris avec RandomForest",
     version="1.0.0",
-    lifespan=lifespan,
+   # lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc"
 )
 
 # Configuration du monitoring
-setup_monitoring(app)
+# setup_monitoring(app)
 
 # Inclusion des routes
 app.include_router(router)
