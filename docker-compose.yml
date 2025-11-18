@@ -7,7 +7,6 @@ services:
     container_name: eris_predict_api
     ports:
       - "8000:8000"
-    command: sleep infinity
     volumes:
       - ./models:/app/models
       - ./logfiles:/app/logfiles
