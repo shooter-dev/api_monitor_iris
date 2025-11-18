@@ -1,9 +1,9 @@
-# monitoring_prometheus.py
 from prometheus_fastapi_instrumentator import Instrumentator
 from prometheus_client import Counter, Histogram, Gauge
 import time
+import json
 
-# Métriques customisées pour Iris
+# --------- Iris-specific metrics ----------
 IRIS_PREDICTION_COUNT = Counter(
     'iris_prediction_requests_total',
     'Total number of Iris prediction requests',
@@ -34,56 +34,64 @@ REQUEST_BY_ENDPOINT = Counter(
     ['method', 'endpoint', 'status_code']
 )
 
+# --------- Setup ----------
 def setup_monitoring(app):
-    # Instrumentation de base
-    instrumentator = Instrumentator()
-    
-    instrumentator.instrument(app).expose(app)
-    
-    # Middleware personnalisé pour les métriques Iris
+
+    # Base FastAPI instrumentation
+    Instrumentator(
+        should_group_status_codes=False,
+        should_instrument_requests_inprogress=True,
+        excluded_handlers=["/metrics"]
+    ).instrument(app).expose(app)
+
+    # --------- Custom Iris metrics middleware ----------
     @app.middleware("http")
-    async def monitor_iris_requests(request, call_next):
-        if request.url.path == "/predict":
-            start_time = time.time()
-            ACTIVE_REQUESTS.inc()
-            
-            try:
-                response = await call_next(request)
-                process_time = time.time() - start_time
-                PREDICTION_LATENCY.observe(process_time)
-                
-                # Compter les prédictions
-                if response.status_code == 200:
-                    IRIS_PREDICTION_COUNT.labels(
-                        prediction_class="success", 
-                        status="200"
-                    ).inc()
-                else:
-                    IRIS_PREDICTION_COUNT.labels(
-                        prediction_class="error", 
-                        status=str(response.status_code)
-                    ).inc()
-                    
-            except Exception as e:
-                IRIS_PREDICTION_COUNT.labels(
-                    prediction_class="error", 
-                    status="500"
-                ).inc()
-                raise e
-            finally:
-                ACTIVE_REQUESTS.dec()
-            
-            return response
-        else:
-            # Monitoring pour les autres endpoints
-            start_time = time.time()
+    async def collect_iris_metrics(request, call_next):
+
+        # Do not monitor /metrics
+        if request.url.path == "/metrics":
+            return await call_next(request)
+
+        start_time = time.time()
+        ACTIVE_REQUESTS.inc()
+
+        try:
             response = await call_next(request)
-            process_time = time.time() - start_time
-            
+            latency = time.time() - start_time
+
+            # Record generic request data
             REQUEST_BY_ENDPOINT.labels(
                 method=request.method,
                 endpoint=request.url.path,
-                status_code=response.status_code
+                status_code=str(response.status_code)
             ).inc()
-            
+
+            # --- Iris /predict endpoint ---
+            if request.url.path == "/predict":
+                PREDICTION_LATENCY.observe(latency)
+
+                try:
+                    body = b"".join([chunk async for chunk in response.body_iterator])
+                    response.body_iterator = iter([body])
+                    data = json.loads(body.decode())
+
+                    pred_class = str(data.get("prediction_name", "unknown"))
+                    confidence = float(data.get("confidence", 0.0))
+
+                    IRIS_PREDICTION_COUNT.labels(
+                        prediction_class=pred_class,
+                        status=str(response.status_code),
+                    ).inc()
+
+                    PREDICTION_CONFIDENCE.labels(prediction_class=pred_class).observe(confidence)
+
+                except Exception:
+                    IRIS_PREDICTION_COUNT.labels(
+                        prediction_class="error",
+                        status="500",
+                    ).inc()
+
             return response
+
+        finally:
+            ACTIVE_REQUESTS.dec()
