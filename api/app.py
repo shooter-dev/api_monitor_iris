@@ -42,8 +42,7 @@ async def lifespan(app: FastAPI):
     
     # Injection des variables globales dans les routes
     set_model_globals(model, model_scaler_X, model_scaler_y, PREDICTIONS_LOG)
-    # Configuration du monitoring prometheus
-    setup_monitoring(app)
+
     
     yield  # L'application est en cours d'exécution
     
@@ -61,6 +60,8 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+# Configuration du monitoring prometheus
+setup_monitoring(app)
 
 
 # Inclusion des routes
