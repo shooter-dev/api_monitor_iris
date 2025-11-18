@@ -9,11 +9,7 @@ class IrisFeatures(BaseModel):
     petal_width: float
 
 class PredictionResponse(BaseModel):
-<<<<<<< HEAD
-    prediction: int
-=======
     prediction: str
->>>>>>> origin
     prediction_name: str
     probabilities: List[float]
     confidence: float

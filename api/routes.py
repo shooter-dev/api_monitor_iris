@@ -40,18 +40,6 @@ async def predict(features: IrisFeatures):
             features.sepal_width,
             features.petal_length,
             features.petal_width
-<<<<<<< HEAD
-        ]], columns=model_metadata['features'])
-
-        input_data_scaled = model_scaler_X.transform(input_data)  # Ajouter le scaling si nécessaire
-        
-        # Prédiction
-        prediction = model.predict(input_data_scaled)[0]
-        probabilities = model.predict_proba(input_data_scaled)[0]
-        prediction_scaled = model_scaler_y.inverse_transform([[prediction]])[0][0]
-        confidence = np.max(probabilities)
-        prediction_name = model_metadata['target_mapping'][str(prediction_scaled)]
-=======
         ]])
 
         
@@ -62,17 +50,12 @@ async def predict(features: IrisFeatures):
         probabilities = model.predict_proba(input_data)[0]
         confidence = np.max(probabilities)
         prediction_name = 'randomforest'
->>>>>>> origin
         
-        # Enregistrement pour monitoring
+        # Enregistrement de logfiles
         await log_prediction(features, prediction, prediction_name, confidence)
         
         return PredictionResponse(
-<<<<<<< HEAD
-            prediction=int(prediction),
-=======
             prediction=str(prediction),
->>>>>>> origin
             prediction_name=prediction_name,
             probabilities=[float(p) for p in probabilities],
             confidence=float(confidence),

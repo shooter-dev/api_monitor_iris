@@ -8,7 +8,7 @@ import logging
 import os
 from .config import MODEL_PATH, MODEL_SCALERX_PATH, MODEL_SCALERY_PATH, PREDICTIONS_LOG
 from .routes import router, set_model_globals
-#from .monitoring import setup_monitoring
+from .monitoring_prometheus import setup_monitoring
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
     model_scaler_y = joblib.load(MODEL_SCALERY_PATH) 
     
     # Initialisation du fichier de log
-    os.makedirs("monitoring", exist_ok=True)
+    os.makedirs("logfiles", exist_ok=True)
     if not os.path.exists(PREDICTIONS_LOG):
         df_log = pd.DataFrame(columns=[
             'timestamp', 'sepal_length', 'sepal_width', 
@@ -42,6 +42,8 @@ async def lifespan(app: FastAPI):
     
     # Injection des variables globales dans les routes
     set_model_globals(model, model_scaler_X, model_scaler_y, PREDICTIONS_LOG)
+    # Configuration du monitoring prometheus
+    setup_monitoring(app)
     
     yield  # L'application est en cours d'exécution
     
@@ -59,8 +61,7 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Configuration du monitoring
-# setup_monitoring(app)
+
 
 # Inclusion des routes
 app.include_router(router)
