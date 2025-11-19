@@ -8,3 +8,9 @@ timestamp,sepal_length,sepal_width,petal_length,petal_width,prediction,predictio
 2025-11-17 15:01:33.624753,5.5,3.9,1.7,0.4,Iris-setosa,randomforest,0.97
 2025-11-17 15:01:34.867943,5.5,3.9,1.7,0.4,Iris-setosa,randomforest,0.97
 2025-11-17 15:01:35.047815,5.5,3.9,1.7,0.4,Iris-setosa,randomforest,0.97
+2025-11-19 09:43:35.170747,0.0,0.0,0.0,0.0,Iris-setosa,randomforest,0.99
+2025-11-19 09:43:38.185136,0.0,0.0,0.0,0.0,Iris-setosa,randomforest,0.99
+2025-11-19 09:43:55.294736,6.7,3.1,4.4,1.4,Iris-versicolor,randomforest,1.0
+2025-11-19 09:47:06.207571,6.7,3.1,4.4,1.4,Iris-versicolor,randomforest,1.0
+2025-11-19 09:47:17.357190,5.7,3.1,4.4,1.4,Iris-versicolor,randomforest,0.99
+2025-11-19 09:52:13.782136,5.7,3.1,4.4,1.4,Iris-versicolor,randomforest,0.99

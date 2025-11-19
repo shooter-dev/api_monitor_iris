@@ -44,11 +44,10 @@ def setup_monitoring(app):
         excluded_handlers=["/metrics"]
     ).instrument(app).expose(app)
 
-    # --------- Custom Iris metrics middleware ----------
+     # --------- Simple Iris metrics middleware ----------
     @app.middleware("http")
     async def collect_iris_metrics(request, call_next):
-
-        # Do not monitor /metrics
+        # Skip /metrics endpoint
         if request.url.path == "/metrics":
             return await call_next(request)
 
@@ -63,35 +62,25 @@ def setup_monitoring(app):
             REQUEST_BY_ENDPOINT.labels(
                 method=request.method,
                 endpoint=request.url.path,
-                status_code=str(response.status_code)
+                status_code=response.status_code
             ).inc()
 
             # --- Iris /predict endpoint ---
             if request.url.path == "/predict":
                 PREDICTION_LATENCY.observe(latency)
-
-                try:
-                    body = b"".join([chunk async for chunk in response.body_iterator])
-                    response.body_iterator = iter([body])
-                    data = json.loads(body.decode())
-
-                    pred_class = str(data.get("prediction_name", "unknown"))
-                    confidence = float(data.get("confidence", 0.0))
-
-                    IRIS_PREDICTION_COUNT.labels(
-                        prediction_class=pred_class,
-                        status=str(response.status_code),
-                    ).inc()
-
-                    PREDICTION_CONFIDENCE.labels(prediction_class=pred_class).observe(confidence)
-
-                except Exception:
-                    IRIS_PREDICTION_COUNT.labels(
-                        prediction_class="error",
-                        status="500",
-                    ).inc()
+                
+                # Simple counting without reading response body
+                if response.status_code == 200:
+                    IRIS_PREDICTION_COUNT.labels(status="success").inc()
+                else:
+                    IRIS_PREDICTION_COUNT.labels(status="error").inc()
 
             return response
 
+        except Exception:
+            # Count errors for /predict endpoint
+            if request.url.path == "/predict":
+                IRIS_PREDICTION_COUNT.labels(status="error").inc()
+            raise
         finally:
             ACTIVE_REQUESTS.dec()
