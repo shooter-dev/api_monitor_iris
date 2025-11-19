@@ -12,6 +12,7 @@ services:
       - ./logfiles:/app/logfiles
     environment:
       - PYTHONUNBUFFERED=1
+      - ENABLE_METRICS=true
     restart: unless-stopped
 
   grafana:
