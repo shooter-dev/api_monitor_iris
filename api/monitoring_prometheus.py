@@ -74,7 +74,7 @@ def setup_monitoring(app):
                 if response.status_code == 200:
                     # 🎯 For panels 1, 2, 5, 6: Success counts
                     # Simulate different flower classes for demo
-                    flower_class = random.choice(['setosa', 'versicolor', 'virginica'])
+                    flower_class = random.choice(['Iris-setosa', 'Iris-versicolor', 'Iris-virginica'])
                     confidence = random.uniform(0.8, 0.98)
                     
                     IRIS_PREDICTION_COUNT.labels(
