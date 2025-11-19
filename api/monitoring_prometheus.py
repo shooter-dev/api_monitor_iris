@@ -13,7 +13,7 @@ IRIS_PREDICTION_COUNT = Counter(
 PREDICTION_LATENCY = Histogram(
     'iris_prediction_latency_seconds',
     'Iris prediction request latency',
-    buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 2.0]
+    buckets=[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0]
 )
 
 PREDICTION_CONFIDENCE = Histogram(
