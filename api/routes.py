@@ -51,7 +51,7 @@ async def predict(features: IrisFeatures):
         confidence = np.max(probabilities)
         prediction_name = 'randomforest'
         
-        # Enregistrement pour monitoring
+        # Enregistrement de logfiles
         await log_prediction(features, prediction, prediction_name, confidence)
         
         return PredictionResponse(
