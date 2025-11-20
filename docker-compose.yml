@@ -10,6 +10,8 @@ services:
     volumes:
       - ./models:/app/models
       - ./logfiles:/app/logfiles
+      - ./api:/app/api
+      - ./data:/app/data
     environment:
       - PYTHONUNBUFFERED=1
       - ENABLE_METRICS=true
