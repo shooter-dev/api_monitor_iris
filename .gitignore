@@ -210,3 +210,9 @@ __marimo__/
 
 .claude/
 CLAUDE.md
+
+# Evidently AI Reports (generated)
+evidently_reports/
+
+# Prediction logs (generated data)
+logfiles/*.csv
