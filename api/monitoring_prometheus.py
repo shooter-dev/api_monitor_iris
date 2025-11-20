@@ -1,9 +1,9 @@
+# monitoring_prometheus.py - VERSION FINALE CORRIGÉE
 from prometheus_fastapi_instrumentator import Instrumentator
 from prometheus_client import Counter, Histogram, Gauge
 import time
-import json
 
-# --------- Iris-specific metrics ----------
+# ========== MÉTRIQUES CUSTOMISÉES ==========
 IRIS_PREDICTION_COUNT = Counter(
     'iris_prediction_requests_total',
     'Total number of Iris prediction requests',
@@ -13,7 +13,7 @@ IRIS_PREDICTION_COUNT = Counter(
 PREDICTION_LATENCY = Histogram(
     'iris_prediction_latency_seconds',
     'Iris prediction request latency',
-    buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 2.0]
+    buckets=[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0]
 )
 
 PREDICTION_CONFIDENCE = Histogram(
@@ -34,64 +34,118 @@ REQUEST_BY_ENDPOINT = Counter(
     ['method', 'endpoint', 'status_code']
 )
 
-# --------- Setup ----------
-def setup_monitoring(app):
+# ========== MÉTRIQUES EVIDENTLY (DATA DRIFT & QUALITY) ==========
+DATASET_DRIFT_DETECTED = Gauge(
+    'iris_dataset_drift_detected',
+    'Whether dataset drift is detected (1=yes, 0=no)'
+)
 
-    # Base FastAPI instrumentation
-    Instrumentator(
-        should_group_status_codes=False,
-        should_instrument_requests_inprogress=True,
-        excluded_handlers=["/metrics"]
-    ).instrument(app).expose(app)
+DRIFT_SHARE = Gauge(
+    'iris_drift_share_columns',
+    'Share of columns with detected drift (0.0 to 1.0)'
+)
 
-    # --------- Custom Iris metrics middleware ----------
-    @app.middleware("http")
-    async def collect_iris_metrics(request, call_next):
+COLUMN_DRIFT = Gauge(
+    'iris_column_drift',
+    'Drift detected for specific column (1=yes, 0=no)',
+    ['column_name']
+)
 
-        # Do not monitor /metrics
-        if request.url.path == "/metrics":
-            return await call_next(request)
+DATA_ROWS_COUNT = Gauge(
+    'iris_data_rows_count',
+    'Number of rows in current dataset'
+)
 
-        start_time = time.time()
+PREDICTION_CLASS_DISTRIBUTION = Gauge(
+    'iris_prediction_class_distribution',
+    'Distribution of prediction classes in current data',
+    ['class_name']
+)
+
+
+# ========== MIDDLEWARE (défini au niveau module) ==========
+async def prometheus_middleware(request, call_next):
+    """
+    Middleware pour les métriques Prometheus
+    IMPORTANT : Doit être ajouté AVANT le démarrage de l'app
+    """
+    start_time = time.time()
+    
+    # Traitement spécial pour /predict
+    if request.url.path == "/predict":
         ACTIVE_REQUESTS.inc()
-
+        
+        try:
+            # Appeler l'endpoint et obtenir la réponse
+            response = await call_next(request)
+            
+            # Mesurer la latence
+            process_time = time.time() - start_time
+            PREDICTION_LATENCY.observe(process_time)
+            
+            # Compter les prédictions selon le status code
+            if response.status_code == 200:
+                IRIS_PREDICTION_COUNT.labels(
+                    prediction_class="success",
+                    status="200"
+                ).inc()
+            else:
+                IRIS_PREDICTION_COUNT.labels(
+                    prediction_class="error",
+                    status=str(response.status_code)
+                ).inc()
+            
+            return response
+            
+        except Exception as e:
+            # En cas d'erreur, compter comme erreur
+            IRIS_PREDICTION_COUNT.labels(
+                prediction_class="error",
+                status="500"
+            ).inc()
+            raise e
+            
+        finally:
+            # Toujours décrémenter le compteur de requêtes actives
+            ACTIVE_REQUESTS.dec()
+    
+    else:
+        # Pour les autres endpoints, monitoring simple
         try:
             response = await call_next(request)
-            latency = time.time() - start_time
-
-            # Record generic request data
+            process_time = time.time() - start_time
+            
+            # Compter par endpoint
             REQUEST_BY_ENDPOINT.labels(
                 method=request.method,
                 endpoint=request.url.path,
-                status_code=str(response.status_code)
+                status_code=response.status_code
             ).inc()
-
-            # --- Iris /predict endpoint ---
-            if request.url.path == "/predict":
-                PREDICTION_LATENCY.observe(latency)
-
-                try:
-                    body = b"".join([chunk async for chunk in response.body_iterator])
-                    response.body_iterator = iter([body])
-                    data = json.loads(body.decode())
-
-                    pred_class = str(data.get("prediction_name", "unknown"))
-                    confidence = float(data.get("confidence", 0.0))
-
-                    IRIS_PREDICTION_COUNT.labels(
-                        prediction_class=pred_class,
-                        status=str(response.status_code),
-                    ).inc()
-
-                    PREDICTION_CONFIDENCE.labels(prediction_class=pred_class).observe(confidence)
-
-                except Exception:
-                    IRIS_PREDICTION_COUNT.labels(
-                        prediction_class="error",
-                        status="500",
-                    ).inc()
-
+            
             return response
+            
+        except Exception as e:
+            raise e
 
-        finally:
-            ACTIVE_REQUESTS.dec()
+
+# ========== SETUP FUNCTION (appelée dans le lifespan) ==========
+def setup_metrics_endpoint(app):
+    """
+    Configure l'endpoint /metrics pour Prometheus
+    À appeler dans le lifespan de FastAPI
+    """
+    instrumentator = Instrumentator(
+        should_group_status_codes=False,
+        should_ignore_untemplated=True,
+        should_respect_env_var=True,
+        should_instrument_requests_inprogress=True,
+        excluded_handlers=[".*admin.*", "/metrics"],
+        env_var_name="ENABLE_METRICS",
+        inprogress_name="iris_inprogress",
+        inprogress_labels=True,
+    )
+    
+    # Instrumenter et exposer /metrics
+    instrumentator.instrument(app).expose(app)
+    
+    return instrumentator
