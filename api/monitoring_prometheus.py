@@ -34,6 +34,34 @@ REQUEST_BY_ENDPOINT = Counter(
     ['method', 'endpoint', 'status_code']
 )
 
+# ========== MÉTRIQUES EVIDENTLY (DATA DRIFT & QUALITY) ==========
+DATASET_DRIFT_DETECTED = Gauge(
+    'iris_dataset_drift_detected',
+    'Whether dataset drift is detected (1=yes, 0=no)'
+)
+
+DRIFT_SHARE = Gauge(
+    'iris_drift_share_columns',
+    'Share of columns with detected drift (0.0 to 1.0)'
+)
+
+COLUMN_DRIFT = Gauge(
+    'iris_column_drift',
+    'Drift detected for specific column (1=yes, 0=no)',
+    ['column_name']
+)
+
+DATA_ROWS_COUNT = Gauge(
+    'iris_data_rows_count',
+    'Number of rows in current dataset'
+)
+
+PREDICTION_CLASS_DISTRIBUTION = Gauge(
+    'iris_prediction_class_distribution',
+    'Distribution of prediction classes in current data',
+    ['class_name']
+)
+
 
 # ========== MIDDLEWARE (défini au niveau module) ==========
 async def prometheus_middleware(request, call_next):

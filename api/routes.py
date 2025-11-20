@@ -10,6 +10,13 @@ from .schema import (
     IrisFeatures, PredictionResponse, ModelInfoResponse, 
     HealthResponse, PredictionStatsResponse, SampleDataResponse
 )
+from fastapi.responses import HTMLResponse
+from pathlib import Path
+from .monitoring_evidently import (
+    generate_data_drift_report,
+    generate_data_summary_report,
+    update_prometheus_drift_metrics
+)
 
 logger = logging.getLogger(__name__)
 
@@ -172,6 +179,66 @@ async def prediction_stats():
             )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur lors du chargement des stats: {e}")
+    
+@router.get("/evidently/drift", tags=["Monitoring"], response_class=HTMLResponse)
+async def get_drift_report():
+    """
+    Génère et retourne le rapport Evidently de Data Drift
+    Compare les données de production avec les données de référence
+    """
+    try:
+        # Générer le rapport
+        report_path = generate_data_drift_report()
+        
+        # Lire le contenu HTML
+        with open(report_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        return HTMLResponse(content=html_content)
+    except Exception as e:
+        return HTMLResponse(content=f"<h1>Error</h1><p>{str(e)}</p>", status_code=500)
+
+
+@router.get("/evidently/summary", tags=["Monitoring"], response_class=HTMLResponse)
+async def get_summary_report():
+    """
+    Génère et retourne le rapport Evidently de Data Summary
+    Analyse la qualité et les statistiques des données
+    """
+    try:
+        # Générer le rapport
+        report_path = generate_data_summary_report()
+
+        # Lire le contenu HTML
+        with open(report_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+
+        return HTMLResponse(content=html_content)
+    except Exception as e:
+        return HTMLResponse(content=f"<h1>Error</h1><p>{str(e)}</p>", status_code=500)
+
+
+@router.post("/evidently/update-metrics", tags=["Monitoring"])
+async def update_evidently_metrics():
+    """
+    Met à jour les métriques Prometheus avec les données Evidently
+
+    Cette fonction analyse les données de drift et met à jour les métriques
+    Prometheus qui seront ensuite scrapées et affichées dans Grafana.
+
+    Appelez cet endpoint périodiquement (ex: toutes les 15 minutes) pour
+    maintenir les métriques à jour.
+    """
+    try:
+        summary = update_prometheus_drift_metrics()
+        return {
+            "status": "success",
+            "message": "Métriques Prometheus mises à jour",
+            "summary": summary
+        }
+    except Exception as e:
+        logger.error(f"Erreur lors de la mise à jour des métriques: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
 
 def set_model_globals(model_instance, model_scaler_X_instance, model_scaler_y_instance, predictions_log_path):
     """Fonction pour injecter les variables globales depuis app.py"""
